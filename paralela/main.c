@@ -17,10 +17,10 @@ int main(int argc, char **argv){
     
     ler_entrada(arq_entrada, &v, &tamanho_v);
     start = clock();
-    ordenar_dados_com_MPI(v, tamanho_v, argc, argv);
+    ordenar_dados_com_MPI(&v, tamanho_v, argc, argv);
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    escrever_saida(arq_saida, v, cpu_time_used);
+    escrever_saida(arq_saida, v, tamanho_v, cpu_time_used);
     
     return 0;
 }
@@ -30,10 +30,11 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &ranking);
     MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
-    if(ranking == 0) distribuir_dados();
+    distribuir_dados();
     ordenar_dados_locais();
     unir_dados_ordenados();
     MPI_Finalize();
+    if(ranking != 0) exit(0);
 }
 
 void distribuir_dados(){
