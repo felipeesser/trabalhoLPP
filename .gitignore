@@ -1,3 +1,6 @@
 local/
 
-merge.exe
+entrada.txt
+saida.txt
+*.exe
+*.o
