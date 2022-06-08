@@ -19,3 +19,7 @@ void escrever_saida(char *nome_arq, int *v, int tamanho_v, double tempo){
     fprintf(arq, "Tempo de CPU: %lf\n", tempo);
     fclose(arq);
 }
+
+void liberar(int **v){
+    free(*v);
+}
