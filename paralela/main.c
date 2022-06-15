@@ -40,10 +40,20 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
     int *v_local, tamanho_v_local;
     get_vetor_local(*v, tamanho_v, &v_local, &tamanho_v_local, ranking, num_proc);
-    ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
-    fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
-    get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
-    free(v_local);
+ 
+
+    printf("(rank %d) tamanho_v_local: %d\nv_local: [", ranking, tamanho_v_local);
+    for(int i=0; i < tamanho_v_local; i++){
+        printf("(rank %d) %d ", ranking, v_local[i]);
+    }
+    printf("]\n");
+
+ 
+ 
+    //ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
+    //fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
+    //get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
+    if(v_local != NULL) free(v_local);
     MPI_Finalize();
     if(ranking != 0) exit(0);
 }
@@ -51,6 +61,16 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
 void get_vetor_local(int *v, int tamanho_v, int **v_local, int *tamanho_v_local, int ranking, int num_proc){
     int lim_inf, lim_sup, *aux;
     get_limites_vetor_local(tamanho_v, ranking, num_proc, &lim_inf, &lim_sup);
+    
+    
+    printf("(rank %d) lim_inf: %d lim_sup: %d\n", ranking, lim_inf, lim_sup);
+    
+
+    if(lim_inf == -1 || lim_sup == -1){
+        *tamanho_v_local = 0;
+        *v_local = NULL;
+        return;
+    }
     *tamanho_v_local = lim_sup - lim_inf + 1;
     aux = (int*) malloc(*tamanho_v_local*sizeof(int));
     for(int i=0, j=lim_inf; i < *tamanho_v_local; i++, j++){
@@ -61,8 +81,9 @@ void get_vetor_local(int *v, int tamanho_v, int **v_local, int *tamanho_v_local,
 
 void get_limites_vetor_local(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup){
     double div = ceil((double)tamanho_v/ num_proc);
-    *lim_inf = div*ranking;
-    *lim_sup = (ranking == num_proc - 1) ? tamanho_v-1 : div * (ranking+1) -1;
+    *lim_inf = (div*ranking < tamanho_v) ? div*ranking : -1;
+    *lim_sup = (div*(ranking+1)-1 < tamanho_v) ? div * (ranking+1) -1 :
+                                                 (*lim_inf != -1) ? tamanho_v - 1 : -1;
 }
 
 void ordenar_dados(int **v, int tamanho_v, int ranking, int num_proc){
