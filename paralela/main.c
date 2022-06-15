@@ -16,7 +16,7 @@ void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int t
 int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2);
 int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
 int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
-
+void get_vetor_ordenado(int **v, int tamanho_v, int *v_local, int tamanho_v_local, int ranking, int num_proc);
 
 int main(int argc, char **argv){
     char *arq_entrada = argv[1], *arq_saida = argv[2];
@@ -42,6 +42,8 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     get_vetor_local(*v, tamanho_v, &v_local, &tamanho_v_local, ranking, num_proc);
     ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
     fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
+    get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
+    free(v_local);
     MPI_Finalize();
     if(ranking != 0) exit(0);
 }
@@ -202,4 +204,8 @@ int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v
         }
     }
     return aux;
+}
+
+void get_vetor_ordenado(int **v, int tamanho_v, int *v_local, int tamanho_v_local, int ranking, int num_proc){
+    MPI_Gather(v_local, tamanho_v_local, MPI_INT, *v, tamanho_v, MPI_INT, 0, MPI_COMM_WORLD);
 }
