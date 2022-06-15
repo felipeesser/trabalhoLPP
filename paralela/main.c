@@ -7,6 +7,8 @@
 void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv);
 void distribuir_dados();
 void ordenar_dados_locais();
+void mergeSort(int **v, int l, int r);
+void merge(int **v, int l, int m, int r);
 void unir_dados_ordenados();
 
 int main(int argc, char **argv){
@@ -36,8 +38,39 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     if(ranking != 0) exit(0);
 }
 
-void merge(int **v, int l, int m, int r)
-{
+void distribuir_dados(int **v,int tamanho_v,int ranking,int num_proc){
+    //Código para distribuir os valores do vetor pelos processos...
+    
+}
+
+void ordenar_dados_locais(int **v,int tamanho_v,int ranking,int num_proc){
+    //Código para fazer merge sort sequencial...
+    double div=ceil((double)tamanho_v/ num_proc);
+    int l=(div* (ranking));
+    int r;
+    if(ranking==(num_proc-1))
+        r=tamanho_v-1;
+    else
+        r=( div * (ranking+1))-1;
+    mergeSort(v,l,r);
+}
+
+void mergeSort(int **v, int l, int r){
+    if (l < r) {
+        // Same as (l+r)/2, but avoids overflow for
+        // large l and h
+        int m = l + (r - l) / 2;
+  
+        // Sort first and second halves
+        mergeSort(v, l, m);
+        mergeSort(v, m + 1, r);
+  
+        merge(v, l, m, r);
+
+    }
+}
+
+void merge(int **v, int l, int m, int r){
     int i, j, k;
     int n1 = m - l + 1;
     int n2 = r - m;
@@ -87,40 +120,6 @@ void merge(int **v, int l, int m, int r)
     }
     free(L);
     free(R);
-}
-
-void mergeSort(int **v, int l, int r)
-{
-    if (l < r) {
-        // Same as (l+r)/2, but avoids overflow for
-        // large l and h
-        int m = l + (r - l) / 2;
-  
-        // Sort first and second halves
-        mergeSort(v, l, m);
-        mergeSort(v, m + 1, r);
-  
-        merge(v, l, m, r);
-
-    }
-}
-
-
-void ordenar_dados_locais(int **v,int tamanho_v,int ranking,int num_proc){
-    //Código para fazer merge sort sequencial...
-    double div=ceil((double)tamanho_v/ num_proc);
-    int l=(div* (ranking));
-    int r;
-    if(ranking==(num_proc-1))
-        r=tamanho_v-1;
-    else
-        r=( div * (ranking+1))-1;
-    mergeSort(v,l,r);
-}
-
-void distribuir_dados(int **v,int tamanho_v,int ranking,int num_proc){
-    //Código para distribuir os valores do vetor pelos processos...
-    
 }
 
 void unir_dados_ordenados(){
