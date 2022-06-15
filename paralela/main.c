@@ -7,9 +7,16 @@
 void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv);
 void distribuir_dados();
 void ordenar_dados_locais();
+void get_limites_vetor(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup);
 void mergeSort(int **v, int l, int r);
 void merge(int **v, int l, int m, int r);
-void unir_dados_ordenados();
+void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc);
+void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int tamanho_v,
+                                         int **v2, int *tamanho_v2);
+int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2);
+int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
+int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
+
 
 int main(int argc, char **argv){
     char *arq_entrada = argv[1], *arq_saida = argv[2];
@@ -33,7 +40,7 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
     distribuir_dados();
     ordenar_dados_locais(v,tamanho_v,ranking,num_proc); 
-    unir_dados_ordenados();
+    /////////unir_dados_ordenados();
     MPI_Finalize();
     if(ranking != 0) exit(0);
 }
@@ -45,14 +52,15 @@ void distribuir_dados(int **v,int tamanho_v,int ranking,int num_proc){
 
 void ordenar_dados_locais(int **v,int tamanho_v,int ranking,int num_proc){
     //Código para fazer merge sort sequencial...
-    double div=ceil((double)tamanho_v/ num_proc);
-    int l=(div* (ranking));
-    int r;
-    if(ranking==(num_proc-1))
-        r=tamanho_v-1;
-    else
-        r=( div * (ranking+1))-1;
+    int l, r;
+    get_limites_vetor(tamanho_v, ranking, num_proc, &l, &r);
     mergeSort(v,l,r);
+}
+
+void get_limites_vetor(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup){
+    double div = ceil((double)tamanho_v/ num_proc);
+    *lim_inf = div*ranking;
+    *lim_sup = (ranking == num_proc - 1) ? tamanho_v-1 : div * (ranking+1) -1;
 }
 
 void mergeSort(int **v, int l, int r){
@@ -122,6 +130,72 @@ void merge(int **v, int l, int m, int r){
     free(R);
 }
 
-void unir_dados_ordenados(){
-    //Código para fazer comunicação via hipercubo...
+//**v deve ser o vetor inteiro para trabalharmos, não um pedaço dele
+void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
+    int num_iteracoes = log(num_proc)/log(2);
+    int vizinho, *v2, tamanho_v2, *aux;
+    for(int i = 0; i < num_iteracoes; i++){
+        vizinho = ranking ^ (int) pow(2, i);
+        trocar_vetores_ordenados_localmente(ranking, vizinho, *v, tamanho_v, &v2, &tamanho_v2);
+        aux = get_merge_vetores(ranking, i, *v, tamanho_v, v2, tamanho_v2);
+        free(*v);
+        free(v2);
+        *v = aux;
+    }
+}
+
+void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int tamanho_v,
+                                         int **v2, int *tamanho_v2){
+    if(ranking > vizinho){
+        MPI_Send(&tamanho_v, 1, MPI_INT, vizinho, 0, MPI_COMM_WORLD);
+        MPI_Send(v, tamanho_v, MPI_INT, vizinho, 0, MPI_COMM_WORLD);
+        
+        MPI_Recv(tamanho_v2, 1, MPI_INT, vizinho, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        *v2 = (int*) malloc(*tamanho_v2*sizeof(int));
+        MPI_Recv(*v2, *tamanho_v2, MPI_INT, vizinho, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    else{
+        MPI_Recv(tamanho_v2, 1, MPI_INT, vizinho, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        *v2 = (int*) malloc(*tamanho_v2*sizeof(int));
+        MPI_Recv(*v2, *tamanho_v2, MPI_INT, vizinho, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        MPI_Send(&tamanho_v, 1, MPI_INT, vizinho, 0, MPI_COMM_WORLD);
+        MPI_Send(v, tamanho_v, MPI_INT, vizinho, 0, MPI_COMM_WORLD);
+    }
+}
+
+int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2){
+    return (ranking & (int) pow(2, dimensao)) ? 
+            obter_maiores_valores_vetores(v, tamanho_v, v2, tamanho_v2) : 
+            obter_menores_valores_vetores(v, tamanho_v, v2, tamanho_v2);
+}
+
+int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2){
+    int *aux = (int*) malloc(tamanho_v*sizeof(int));
+    int j = tamanho_v2 - 1;
+    for(int i = tamanho_v - 1; i <= 0; i--){
+        if(v[i] >= v2[j]){
+            aux[i] = v[i];
+        }
+        else{
+            aux[i] = v2[j];
+            j--;
+        }
+    }
+    return aux;
+}
+
+int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2){
+    int *aux = (int*) malloc(tamanho_v*sizeof(int));
+    int j = 0;
+    for(int i = 0; i < tamanho_v; i++){
+        if(v[i] <= v2[j]){
+            aux[i] = v[i];
+        }
+        else{
+            aux[i] = v2[j];
+            j++;
+        }
+    }
+    return aux;
 }
