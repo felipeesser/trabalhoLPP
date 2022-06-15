@@ -5,9 +5,9 @@
 #include "util.h"
 
 void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv);
-void distribuir_dados();
-void ordenar_dados_locais();
-void get_limites_vetor(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup);
+void get_vetor_local(int *v, int tamanho_v, int **v_local, int *tamanho_v_local, int ranking, int num_proc);
+void get_limites_vetor_local(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup);
+void ordenar_dados(int **v, int tamanho_v, int ranking, int num_proc);
 void mergeSort(int **v, int l, int r);
 void merge(int **v, int l, int m, int r);
 void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc);
@@ -38,29 +38,34 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &ranking);
     MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
-    distribuir_dados();
-    ordenar_dados_locais(v,tamanho_v,ranking,num_proc); 
-    /////////unir_dados_ordenados();
+    int *v_local, tamanho_v_local;
+    get_vetor_local(*v, tamanho_v, &v_local, &tamanho_v_local, ranking, num_proc);
+    ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
+    fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
     MPI_Finalize();
     if(ranking != 0) exit(0);
 }
 
-void distribuir_dados(int **v,int tamanho_v,int ranking,int num_proc){
-    //Código para distribuir os valores do vetor pelos processos...
-    
+void get_vetor_local(int *v, int tamanho_v, int **v_local, int *tamanho_v_local, int ranking, int num_proc){
+    int lim_inf, lim_sup, *aux;
+    get_limites_vetor_local(tamanho_v, ranking, num_proc, &lim_inf, &lim_sup);
+    *tamanho_v_local = lim_sup - lim_inf + 1;
+    aux = (int*) malloc(*tamanho_v_local*sizeof(int));
+    for(int i=0, j=lim_inf; i < *tamanho_v_local; i++, j++){
+        aux[i] = v[j];
+    }
+    *v_local = aux;
 }
 
-void ordenar_dados_locais(int **v,int tamanho_v,int ranking,int num_proc){
-    //Código para fazer merge sort sequencial...
-    int l, r;
-    get_limites_vetor(tamanho_v, ranking, num_proc, &l, &r);
-    mergeSort(v,l,r);
-}
-
-void get_limites_vetor(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup){
+void get_limites_vetor_local(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup){
     double div = ceil((double)tamanho_v/ num_proc);
     *lim_inf = div*ranking;
     *lim_sup = (ranking == num_proc - 1) ? tamanho_v-1 : div * (ranking+1) -1;
+}
+
+void ordenar_dados(int **v, int tamanho_v, int ranking, int num_proc){
+    //Código para fazer merge sort sequencial...
+    mergeSort(v,0,tamanho_v-1);
 }
 
 void mergeSort(int **v, int l, int r){
@@ -130,7 +135,6 @@ void merge(int **v, int l, int m, int r){
     free(R);
 }
 
-//**v deve ser o vetor inteiro para trabalharmos, não um pedaço dele
 void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
     int num_iteracoes = log(num_proc)/log(2);
     int vizinho, *v2, tamanho_v2, *aux;
