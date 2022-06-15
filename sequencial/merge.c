@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "util.h"
 
 void merge(int arr[], int l, int m, int r)
 {
@@ -77,46 +78,21 @@ void printArray(int A[], int size)
         printf("%d ", A[i]);
     printf("\n");
 }
-  
-void leitura(FILE *f, int **V, int *N){
-    int i;
-    f=fopen("entrada.txt","r");
-    fscanf(f,"%d",N);
-    *V=(int*)malloc((*N)*sizeof(int));
-    for ( i = 0; i < (*N); i++)
-    {
-        fscanf(f,"%d",&(*V)[i]);
-    }
-    fclose(f); 
-}
 
-void escrita(FILE *f, double time){
-    int i;
-    f=fopen("saida.txt","a");
-    fprintf(f,"%lf",time);
-    fprintf(f,"\n");
-    fclose(f); 
-}
-
-int main()
+int main(int argc, char **argv)
 {
     FILE* f;
     int* V;//vetor a ser ordenado
     int N;//tmanho do vetor 
     double start,end,cpu_time_used;//contagem do tempo
-    
-    leitura(f,&V,&N);
+    char *arq_entrada = argv[1], 
+    *arq_saida = argv[2];
+    ler_entrada(arq_entrada,&V,&N);
     start=clock();
     mergeSort(V, 0,N - 1);
     end=clock();
     cpu_time_used=((double) (end - start)) / CLOCKS_PER_SEC;
-    escrita(f,cpu_time_used);
-
-    printf("Given array is \n");
-    printArray(V, N);
-    printf("\nSorted array is \n");
-    printArray(V, N);
-    
-    free(V);
+    escrever_saida(arq_saida,V,N,cpu_time_used);
+    liberar(&V);
     return 0;
 }
