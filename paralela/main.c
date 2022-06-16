@@ -40,18 +40,20 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
     int *v_local, tamanho_v_local;
     get_vetor_local(*v, tamanho_v, &v_local, &tamanho_v_local, ranking, num_proc);
- 
+    ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
+    fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
 
+
+    /*
     printf("(rank %d) tamanho_v_local: %d\nv_local: [", ranking, tamanho_v_local);
     for(int i=0; i < tamanho_v_local; i++){
         printf("(rank %d) %d ", ranking, v_local[i]);
     }
     printf("]\n");
+    */
 
- 
- 
-    //ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
-    //fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
+
+
     //get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
     if(v_local != NULL) free(v_local);
     MPI_Finalize();
@@ -61,11 +63,6 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
 void get_vetor_local(int *v, int tamanho_v, int **v_local, int *tamanho_v_local, int ranking, int num_proc){
     int lim_inf, lim_sup, *aux;
     get_limites_vetor_local(tamanho_v, ranking, num_proc, &lim_inf, &lim_sup);
-    
-    
-    printf("(rank %d) lim_inf: %d lim_sup: %d\n", ranking, lim_inf, lim_sup);
-    
-
     if(lim_inf == -1 || lim_sup == -1){
         *tamanho_v_local = 0;
         *v_local = NULL;
@@ -165,6 +162,27 @@ void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
         vizinho = ranking ^ (int) pow(2, i);
         trocar_vetores_ordenados_localmente(ranking, vizinho, *v, tamanho_v, &v2, &tamanho_v2);
         aux = get_merge_vetores(ranking, i, *v, tamanho_v, v2, tamanho_v2);
+
+
+        printf("(rank %d) %d v_local: [", ranking, tamanho_v);
+        for(int i=0; i < tamanho_v; i++){
+            printf("(rank %d) %d ", ranking, (*v)[i]);
+        }
+        printf("]\n");
+
+        printf("(rank %d) %d v_recebido: [", ranking, tamanho_v2);
+        for(int i=0; i < tamanho_v2; i++){
+            printf("(rank %d RECEBIDO) %d ", ranking, v2[i]);
+        }
+        printf("]\n");
+        
+        printf("(rank %d) %d aux: [", ranking, tamanho_v);
+        for(int i=0; i < tamanho_v; i++){
+            printf("(rank %d AUX) %d ", ranking, aux[i]);
+        }
+        printf("]\n");
+
+        
         free(*v);
         free(v2);
         *v = aux;
@@ -192,21 +210,30 @@ void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int t
 }
 
 int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2){
-    return (ranking & (int) pow(2, dimensao)) ? 
+    return ((ranking & (int) pow(2, dimensao)) > 0) ? 
             obter_maiores_valores_vetores(v, tamanho_v, v2, tamanho_v2) : 
             obter_menores_valores_vetores(v, tamanho_v, v2, tamanho_v2);
 }
 
 int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2){
     int *aux = (int*) malloc(tamanho_v*sizeof(int));
-    int j = tamanho_v2 - 1;
-    for(int i = tamanho_v - 1; i <= 0; i--){
-        if(v[i] >= v2[j]){
-            aux[i] = v[i];
+    int j = tamanho_v - 1, k = tamanho_v2 - 1;
+    for(int i = tamanho_v - 1; i >= 0; i--){
+        if(j < 0){
+            aux[i] = v2[k];
+            k--;
+        }
+        else if(k < 0){
+            aux[i] = v[j];
+            j--;
+        }
+        else if(v[j] >= v2[k]){
+            aux[i] = v[j];
+            j--;
         }
         else{
-            aux[i] = v2[j];
-            j--;
+            aux[i] = v2[k];
+            k--;
         }
     }
     return aux;
@@ -214,14 +241,23 @@ int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v
 
 int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2){
     int *aux = (int*) malloc(tamanho_v*sizeof(int));
-    int j = 0;
+    int j = 0, k = 0;
     for(int i = 0; i < tamanho_v; i++){
-        if(v[i] <= v2[j]){
-            aux[i] = v[i];
+        if(j >= tamanho_v){
+            aux[i] = v2[k];
+            k++;
+        }
+        else if(k >= tamanho_v2){
+            aux[i] = v[j];
+            j++;
+        }
+        else if(v[j] <= v2[k]){
+            aux[i] = v[j];
+            j++;
         }
         else{
-            aux[i] = v2[j];
-            j++;
+            aux[i] = v2[k];
+            k++;
         }
     }
     return aux;
