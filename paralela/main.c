@@ -44,17 +44,26 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
 
 
-    /*
+    
     printf("(rank %d) tamanho_v_local: %d\nv_local: [", ranking, tamanho_v_local);
     for(int i=0; i < tamanho_v_local; i++){
         printf("(rank %d) %d ", ranking, v_local[i]);
     }
     printf("]\n");
-    */
+    
+
+    get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
 
 
+    if(ranking == 0){
+        printf("tamanho_v: %d\nv: [", tamanho_v);
+        for(int i=0; i < tamanho_v; i++){
+            printf(" %d ", (*v)[i]);
+        }
+        printf("]\n");
+    }
 
-    //get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
+
     if(v_local != NULL) free(v_local);
     MPI_Finalize();
     if(ranking != 0) exit(0);
@@ -162,27 +171,6 @@ void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
         vizinho = ranking ^ (int) pow(2, i);
         trocar_vetores_ordenados_localmente(ranking, vizinho, *v, tamanho_v, &v2, &tamanho_v2);
         aux = get_merge_vetores(ranking, i, *v, tamanho_v, v2, tamanho_v2);
-
-
-        printf("(rank %d) %d v_local: [", ranking, tamanho_v);
-        for(int i=0; i < tamanho_v; i++){
-            printf("(rank %d) %d ", ranking, (*v)[i]);
-        }
-        printf("]\n");
-
-        printf("(rank %d) %d v_recebido: [", ranking, tamanho_v2);
-        for(int i=0; i < tamanho_v2; i++){
-            printf("(rank %d RECEBIDO) %d ", ranking, v2[i]);
-        }
-        printf("]\n");
-        
-        printf("(rank %d) %d aux: [", ranking, tamanho_v);
-        for(int i=0; i < tamanho_v; i++){
-            printf("(rank %d AUX) %d ", ranking, aux[i]);
-        }
-        printf("]\n");
-
-        
         free(*v);
         free(v2);
         *v = aux;
@@ -264,5 +252,5 @@ int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v
 }
 
 void get_vetor_ordenado(int **v, int tamanho_v, int *v_local, int tamanho_v_local, int ranking, int num_proc){
-    MPI_Gather(v_local, tamanho_v_local, MPI_INT, *v, tamanho_v, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(v_local, tamanho_v_local, MPI_INT, *v, tamanho_v_local, MPI_INT, 0, MPI_COMM_WORLD);
 }
