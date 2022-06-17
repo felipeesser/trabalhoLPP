@@ -41,15 +41,20 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     int *v_local, tamanho_v_local;
     get_vetor_local(*v, tamanho_v, &v_local, &tamanho_v_local, ranking, num_proc);
     ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
-    fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc);
+
+
+    int num_iteracoes = log(num_proc)/log(2);
+    for(int i=1; i <= num_iteracoes; i++){
+        fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, i);
 
 
     
-    printf("(rank %d) tamanho_v_local: %d\nv_local: [", ranking, tamanho_v_local);
-    for(int i=0; i < tamanho_v_local; i++){
-        printf("(rank %d) %d ", ranking, v_local[i]);
+        printf("(rank %d) tamanho_v_local: %d\nv_local: [", ranking, tamanho_v_local);
+        for(int i=0; i < tamanho_v_local; i++){
+            printf("(rank %d) %d ", ranking, v_local[i]);
+        }
+        printf("]\n");
     }
-    printf("]\n");
     
 
     get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
@@ -165,10 +170,11 @@ void merge(int **v, int l, int m, int r){
 }
 
 void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
-    int num_iteracoes = log(num_proc)/log(2);
+    //int num_iteracoes = log(num_proc)/log(2);
+    int num_iteracoes = num_proc;
     int vizinho, *v2, tamanho_v2, *aux;
     for(int i = 0; i < num_iteracoes; i++){
-        vizinho = ranking ^ (int) pow(2, i);
+        vizinho = (ranking ^ (int) pow(2, i));
         trocar_vetores_ordenados_localmente(ranking, vizinho, *v, tamanho_v, &v2, &tamanho_v2);
         aux = get_merge_vetores(ranking, i, *v, tamanho_v, v2, tamanho_v2);
         free(*v);
