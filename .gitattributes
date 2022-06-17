@@ -1,0 +1,2 @@
+aleatorio/entradas filter=lfs diff=lfs merge=lfs -text
+aleatorio/entradas/* filter=lfs diff=lfs merge=lfs -text

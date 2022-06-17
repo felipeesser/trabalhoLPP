@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "util.h"
+#include <string.h>
 
 void merge(int **V, int l, int m, int r)
 {
@@ -70,13 +71,24 @@ int main(int argc, char **argv)
     int* V;//vetor a ser ordenado
     int N;//tmanho do vetor 
     double start,end,cpu_time_used;//contagem do tempo
-    char *arq_entrada = argv[1], *arq_saida = argv[2];
-    ler_entrada(arq_entrada,&V,&N);
-    start=clock();
-    mergeSort(&V, 0,N - 1);
-    end=clock();
-    cpu_time_used=((double) (end - start)) / CLOCKS_PER_SEC;
-    escrever_saida(arq_saida,V,N,cpu_time_used);
-    liberar(&V);
+    int num_trials=atoi(argv[1]);
+    char *arq_saida = argv[2];
+    char nome[30]="../aleatorio/entradas/entrada";
+    char num_trial[50];
+    char aux[80];
+
+    for (int i = 1; i <= num_trials; i++)
+    {   
+        strcpy(aux,nome);
+        sprintf(num_trial,"%d",i);
+        ler_entrada(strcat(aux,num_trial),&V,&N);
+        start=clock();
+        mergeSort(&V, 0,N - 1);
+        end=clock();
+        cpu_time_used=((double) (end - start)) / CLOCKS_PER_SEC;
+        escrever_saida(arq_saida,V,N,cpu_time_used);
+        liberar(&V);
+    }
+    
     return 0;
 }
