@@ -61,7 +61,7 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
 
     get_vetor_ordenado(v, tamanho_v, v_local, tamanho_v_local, ranking, num_proc);
 
-
+    
     if(ranking == 0){
         printf("tamanho_v: %d\nv: [", tamanho_v);
         for(int i=0; i < tamanho_v; i++){
@@ -69,7 +69,7 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
         }
         printf("]\n");
     }
-
+    
 
     if(v_local != NULL) free(v_local);
     MPI_Finalize();
@@ -187,17 +187,25 @@ void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc, int
         fator = pow(2, i);
         if(j % 2 == 0) fator = -fator;
         vizinho = get_vizinho(ranking, fator, num_proc_ordenados, processo_principal, prim_proc, ultimo_proc);
+
+        
+
+        printf("(rank %d) fator %d vizinho %d AUX: [\n", ranking, fator, vizinho);
+
+
+
+
+
         trocar_vetores_ordenados_localmente(ranking, vizinho, *v, tamanho_v, &v2, &tamanho_v2);
         aux = get_merge_vetores(ranking, vizinho, *v, tamanho_v, v2, tamanho_v2);
 
         
-        
-        printf("(rank %d) fator %d vizinho %d AUX: [", ranking, fator, vizinho);
+        /*
         for(int i=0; i < tamanho_v; i++){
             printf("(rank %d AUX) %d ", ranking, aux[i]);
         }
         printf("]\n");
-
+        */
 
         
         free(*v);
@@ -212,7 +220,7 @@ int get_vizinho(int ranking, int fator, int num_proc_ordenados, int processo_pri
         proc_escolhidos[i] = -1;
 
     int proc_atual = processo_principal, vizinho_atual;
-    int proc_atual_invalido;
+    int proc_atual_invalido = 0;
     while(1){
         vizinho_atual = proc_atual + fator;
         if(vizinho_atual < prim_proc){
@@ -222,16 +230,29 @@ int get_vizinho(int ranking, int fator, int num_proc_ordenados, int processo_pri
             vizinho_atual = prim_proc + (vizinho_atual - ultimo_proc) - 1;
         }
 
-        if(proc_atual == ranking) return vizinho_atual;
-        if(vizinho_atual == ranking) return proc_atual;
+        for(int i = 0; i < num_proc_escolhidos; i++){
+            if(vizinho_atual == proc_escolhidos[i]){
+                proc_atual_invalido = 1;
+                break;
+            }
+        }
 
-        proc_escolhidos[num_proc_escolhidos] = proc_atual;
-        proc_escolhidos[num_proc_escolhidos+1] = vizinho_atual;
-        num_proc_escolhidos += 2;
+        if(!proc_atual_invalido){
+            if(proc_atual == ranking) return vizinho_atual;
+            if(vizinho_atual == ranking) return proc_atual;
 
-        proc_atual_invalido = 1;
+            proc_escolhidos[num_proc_escolhidos] = proc_atual;
+            proc_escolhidos[num_proc_escolhidos+1] = vizinho_atual;
+            num_proc_escolhidos += 2;
+
+            proc_atual_invalido = 1;
+        }
+
         while(proc_atual_invalido){
             proc_atual += 1;
+            if(proc_atual > ultimo_proc){
+                proc_atual = prim_proc;
+            }
             proc_atual_invalido = 0;
             for(int i = 0; i < num_proc_escolhidos; i++){
                 if(proc_atual == proc_escolhidos[i]){
