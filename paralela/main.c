@@ -10,10 +10,11 @@ void get_limites_vetor_local(int tamanho_v, int ranking, int num_proc, int *lim_
 void ordenar_dados(int **v, int tamanho_v, int ranking, int num_proc);
 void mergeSort(int **v, int l, int r);
 void merge(int **v, int l, int m, int r);
-void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc);
+void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc, int num_proc_ordenados);
+int get_vizinho(int ranking, int fator, int num_proc_ordenados, int processo_principal, int prim_proc, int ultimo_proc);
 void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int tamanho_v,
                                          int **v2, int *tamanho_v2);
-int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2);
+int* get_merge_vetores(int ranking, int vizinho, int *v, int tamanho_v, int* v2, int tamanho_v2);
 int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
 int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
 void get_vetor_ordenado(int **v, int tamanho_v, int *v_local, int tamanho_v_local, int ranking, int num_proc);
@@ -44,16 +45,17 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
 
 
     int num_iteracoes = log(num_proc)/log(2);
-    for(int i=1; i <= num_iteracoes; i++){
-        fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, i);
+    for(int i=0; i < num_iteracoes; i++){
+        fazer_merge_paralelo(&v_local, tamanho_v_local, ranking, num_proc, pow(2, i));
 
 
-    
+        /***********
         printf("(rank %d) tamanho_v_local: %d\nv_local: [", ranking, tamanho_v_local);
         for(int i=0; i < tamanho_v_local; i++){
             printf("(rank %d) %d ", ranking, v_local[i]);
         }
         printf("]\n");
+        *****************///////////////
     }
     
 
@@ -169,17 +171,75 @@ void merge(int **v, int l, int m, int r){
     free(R);
 }
 
-void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
-    //int num_iteracoes = log(num_proc)/log(2);
-    int num_iteracoes = num_proc;
+//dim_proc_ordenados = log2(número de processos ordenados)
+//Ex.: Se há 8 processos ordenados, então dim_proc_ordenados = 3
+void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc, int num_proc_ordenados){
+    int dim_proc_ordenados = log(num_proc_ordenados)/log(2);
+    //O prim_proc é o processo com menor ranking que está em um dos 2 grupos que serão combinados
+    //O ultimo_proc é o processo com maior ranking que está em um dos 2 grupos que serão combinados
+    int prim_proc = ranking - (ranking % (2*num_proc_ordenados));
+    int ultimo_proc = prim_proc + 2*num_proc_ordenados - 1;
+    int processo_principal = prim_proc + dim_proc_ordenados;
     int vizinho, *v2, tamanho_v2, *aux;
-    for(int i = 0; i < num_iteracoes; i++){
-        vizinho = (ranking ^ (int) pow(2, i));
+
+    int fator = 0;
+    for(int i = dim_proc_ordenados, j = 0; i >= 0; i--, j++){
+        fator = pow(2, i);
+        if(j % 2 == 0) fator = -fator;
+        vizinho = get_vizinho(ranking, fator, num_proc_ordenados, processo_principal, prim_proc, ultimo_proc);
         trocar_vetores_ordenados_localmente(ranking, vizinho, *v, tamanho_v, &v2, &tamanho_v2);
-        aux = get_merge_vetores(ranking, i, *v, tamanho_v, v2, tamanho_v2);
+        aux = get_merge_vetores(ranking, vizinho, *v, tamanho_v, v2, tamanho_v2);
+
+        
+        
+        printf("(rank %d) fator %d vizinho %d AUX: [", ranking, fator, vizinho);
+        for(int i=0; i < tamanho_v; i++){
+            printf("(rank %d AUX) %d ", ranking, aux[i]);
+        }
+        printf("]\n");
+
+
+        
         free(*v);
         free(v2);
         *v = aux;
+    }
+}
+
+int get_vizinho(int ranking, int fator, int num_proc_ordenados, int processo_principal, int prim_proc, int ultimo_proc){
+    int proc_escolhidos[2*num_proc_ordenados], num_proc_escolhidos=0;
+    for(int i=0; i < 2*num_proc_ordenados; i++)
+        proc_escolhidos[i] = -1;
+
+    int proc_atual = processo_principal, vizinho_atual;
+    int proc_atual_invalido;
+    while(1){
+        vizinho_atual = proc_atual + fator;
+        if(vizinho_atual < prim_proc){
+            vizinho_atual = ultimo_proc - (prim_proc - vizinho_atual) + 1;
+        }
+        else if(vizinho_atual > ultimo_proc){
+            vizinho_atual = prim_proc + (vizinho_atual - ultimo_proc) - 1;
+        }
+
+        if(proc_atual == ranking) return vizinho_atual;
+        if(vizinho_atual == ranking) return proc_atual;
+
+        proc_escolhidos[num_proc_escolhidos] = proc_atual;
+        proc_escolhidos[num_proc_escolhidos+1] = vizinho_atual;
+        num_proc_escolhidos += 2;
+
+        proc_atual_invalido = 1;
+        while(proc_atual_invalido){
+            proc_atual += 1;
+            proc_atual_invalido = 0;
+            for(int i = 0; i < num_proc_escolhidos; i++){
+                if(proc_atual == proc_escolhidos[i]){
+                    proc_atual_invalido = 1;
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -203,8 +263,8 @@ void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int t
     }
 }
 
-int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2){
-    return ((ranking & (int) pow(2, dimensao)) > 0) ? 
+int* get_merge_vetores(int ranking, int vizinho, int *v, int tamanho_v, int* v2, int tamanho_v2){
+    return (ranking > vizinho) ? 
             obter_maiores_valores_vetores(v, tamanho_v, v2, tamanho_v2) : 
             obter_menores_valores_vetores(v, tamanho_v, v2, tamanho_v2);
 }
