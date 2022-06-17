@@ -67,7 +67,6 @@ void mergeSort(int **V, int l, int r)
 
 int main(int argc, char **argv)
 {
-    FILE* f;
     int* V;//vetor a ser ordenado
     int N;//tmanho do vetor 
     double start,end,cpu_time_used;//contagem do tempo
@@ -77,7 +76,7 @@ int main(int argc, char **argv)
     char num_trial[50];
     char aux[80];
 
-    for (int i = 1; i <= num_trials; i++)
+    for (int i = 31; i <= num_trials; i++)
     {   
         strcpy(aux,nome);
         sprintf(num_trial,"%d",i);
