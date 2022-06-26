@@ -7,15 +7,13 @@
 void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv);
 void get_vetor_local(int *v, int tamanho_v, int **v_local, int *tamanho_v_local, int ranking, int num_proc);
 void get_limites_vetor_local(int tamanho_v, int ranking, int num_proc, int *lim_inf, int *lim_sup);
-void ordenar_dados(int **v, int tamanho_v, int ranking, int num_proc);
+void ordenar_dados(int **v, int tamanho_v);
 void mergeSort(int **v, int l, int r);
 void merge(int **v, int l, int m, int r);
 void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc);
 void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int tamanho_v,
                                          int **v2, int *tamanho_v2);
 int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2);
-int* obter_maiores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
-int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2);
 void get_vetor_ordenado(int **v, int tamanho_v, int *v_local, int tamanho_v_local, int ranking, int num_proc);
 
 int main(int argc, char **argv){
@@ -52,7 +50,8 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
     get_vetor_local(*v, tamanho_v, &v_local, &tamanho_v_local, ranking, num_proc);
 
     //Ordenando dados em "v_local"
-    ordenar_dados(&v_local, tamanho_v_local, ranking, num_proc);
+    //Essa função realiza um merge sort sequencial
+    ordenar_dados(&v_local, tamanho_v_local);
 
     //Unindo os vetores locais ("v_local") de cada processo para formar o vetor original ("v")
     //no processo mestre (ranking == 0)
@@ -62,6 +61,7 @@ void ordenar_dados_com_MPI(int** v, int tamanho_v, int argc, char **argv){
 
     //Finalizando MPI e encerrado todos os processos exceto o que possui o vetor ordenado ("v")
     MPI_Finalize();
+    
     if(ranking != 0) exit(0);
 }
 
@@ -95,7 +95,7 @@ void get_limites_vetor_local(int tamanho_v, int ranking, int num_proc, int *lim_
 }
 
 //Essa função realiza um merge sort sequencial
-void ordenar_dados(int **v, int tamanho_v, int ranking, int num_proc){
+void ordenar_dados(int **v, int tamanho_v){
     mergeSort(v,0,tamanho_v-1);
 }
 
@@ -195,7 +195,9 @@ void fazer_merge_paralelo(int **v, int tamanho_v, int ranking, int num_proc){
             num_proc=num_proc/2;
         }
         else{
-            //Eliminando processos que já enviaram seus dados
+            //eliminando processos que já enviaram seus dados
+            MPI_Finalize();
+            exit(0);
             return;
         }
         
@@ -219,12 +221,6 @@ void trocar_vetores_ordenados_localmente(int ranking, int vizinho, int* v, int t
 
 //Essa função realiza o merge de dois vetores ("v" e "v2") em um único vetor ("aux") e o retorna
 int* get_merge_vetores(int ranking, int dimensao, int *v, int tamanho_v, int* v2, int tamanho_v2){
-    int *aux;
-    aux=obter_menores_valores_vetores(v,tamanho_v,v2,tamanho_v2);
-    return aux;
-}
-
-int* obter_menores_valores_vetores(int *v, int tamanho_v, int* v2, int tamanho_v2){
     int *aux = (int*) malloc((tamanho_v+tamanho_v2)*sizeof(int));
     int j = 0, k = 0;
     for(int i = 0; i < tamanho_v+tamanho_v2; i++){
