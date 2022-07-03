@@ -4,7 +4,7 @@ for j in range(3):
     for w in range(31):
         total=0.0
         for i in range(3):
-            subprocess.call(['./main','../aleatorio/entradas/entrada'+str(w+1),'saida.txt',str(pow(2,j+1))])
+            subprocess.call(['./main.exe','../aleatorio/entradas/entrada'+str(w+1),'saida.txt',str(pow(2,j+1))])
             fr = open("tempo_par", "r")
             line=fr.readline().split(' ')
             if (i==0):
