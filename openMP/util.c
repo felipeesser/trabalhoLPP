@@ -18,7 +18,7 @@ void escrever_saida(char *nome_arq, int *v, int tamanho_v, double tempo){
     fprintf(arq, "]\n");
     fprintf(arq, "Tempo de CPU: %lf\n", tempo);
     fclose(arq);
-    FILE* arq_temp = fopen("tempo_seq", "a+");
+    FILE* arq_temp = fopen("tempo_par", "w");
     fprintf(arq_temp, "%d %lf\n", tamanho_v,tempo);
     fclose(arq_temp);
 }

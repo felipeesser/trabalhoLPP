@@ -3,6 +3,7 @@
 #include <time.h>
 #include "util.h"
 #include <omp.h>
+#include <math.h>
 
 void merge(int **V, int l, int m, int r)
 {
@@ -55,24 +56,59 @@ void mergeSort(int **V, int l, int r)
 {
     if (l < r) {
         int m = l + (r - l) / 2;
-        #pragma omp parallel sections num_threads(2)
-        {
-            #pragma omp section
-            {
-mergeSort(V, l, m);
-            }
-            #pragma omp section
-            {
-mergeSort(V, m + 1, r);
-            }
-        }
-        // divisao do vetor em duas partes
         
-        //ordenacao 
+        mergeSort(V, l, m);
+                
+        mergeSort(V, m + 1, r);
+       
         merge(V, l, m, r);
     }
 }
 
+void paralel_merge(int **V, int size,int nthreads){
+    int div;
+    int l,r,m;
+    int iterate=nthreads;
+    int aux=1;
+    #pragma omp parallel num_threads(nthreads) private(l,r,m)
+    {
+        //ordenacao dos vetores locais 
+        div=size/omp_get_num_threads();
+        l=(div* (omp_get_thread_num()));
+        if(omp_get_thread_num()==(omp_get_num_threads()-1))
+            r=size-1;
+        else
+            r=( div * (omp_get_thread_num()+1))-1;
+        mergeSort(V,l,r);
+        #pragma omp barrier
+        //fim ordenacao vetores locais
+        //merge dos vetores locais
+        while (iterate!=1)
+        {
+            
+            //se a thread pertence ao conjunto de multiplos de potencias de dois atual vai realizar o merge
+            if(omp_get_thread_num()%((int)pow(2,aux))==0){
+                m=r;
+                if(omp_get_thread_num()+(int)pow(2,aux)==omp_get_num_threads())
+                    r=size-1;
+                else
+                    r=( div * (omp_get_thread_num()+(int)pow(2,aux)))-1;
+                merge(V,l,m,r);
+                
+            }  
+            
+            #pragma omp barrier
+            if (omp_get_thread_num()==0){
+                iterate=iterate/2;
+                aux+=1;
+            }
+            #pragma omp barrier
+        }
+        //merge dos vetores locais
+ 
+    }
+    
+}
 int main(int argc, char **argv)
 {
     int* V;//vetor a ser ordenado
@@ -80,9 +116,10 @@ int main(int argc, char **argv)
     double start,end,cpu_time_used;//contagem do tempo
     char *arq_entrada = argv[1];
     char *arq_saida = argv[2];
+    int nthreads = atoi(argv[3]);
     ler_entrada(arq_entrada,&V,&N);
     start=omp_get_wtime();
-    mergeSort(&V, 0,N - 1);
+    paralel_merge(&V,N,nthreads);
     end=omp_get_wtime();
     cpu_time_used=(end - start);
     escrever_saida(arq_saida,V,N,cpu_time_used);
