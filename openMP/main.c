@@ -102,10 +102,16 @@ void paralel_merge(int **V, int size,int nthreads){
         //Todas as threads já ordenaram sequencialmente suas partições do vetor original
         #pragma omp barrier
 
-        //merge dos vetores locais
+        //Realizando o merge das partições do vetor ordenadas separadamente
+        //O merge entre as partições é feito a cada iteração, sempre entre pares de partições consecutivas
+        //Ex.: Supondo 8 partições, a execução seria a seguinte:
+        //(início) T0, T1, T2, T3, T4, T5, T6, T7 -> (1ª iteração) T0T1, T2T3, T4T5, T6T7 ->
+        // -> (2ª iteração) T0T1T2T3, T4T5T6T7 -> (3ª iteração) T0T1T2T3T4T5T6T7
+        //Para isso, utilizamos cálculos baseados em potências de 2 de acordo com o número da 
+        //iteração. Ex.: 1ª iteração -> 2^1, 2ª iteração -> 2^2, 3ª iteração -> 2^3, etc.
         while (iterate!=1)
         {
-            //se a thread pertence ao conjunto de multiplos de potencias de dois atual vai realizar o merge
+            //A thread que realizará o merge deve ser múltipla de 2^(iteração atual)
             if(omp_get_thread_num()%((int)pow(2,aux))==0){
                 m=r;
                 if(omp_get_thread_num()+(int)pow(2,aux)==omp_get_num_threads())
@@ -113,10 +119,17 @@ void paralel_merge(int **V, int size,int nthreads){
                 else
                     r=( div * (omp_get_thread_num()+(int)pow(2,aux)))-1;
                 merge(V,l,m,r);
-                
-            }  
-            
+            }
+
+            //Necessitamos utilizar as duas barreiras abaixo porque a condição de parada do loop
+            //"while" depende do valor da variável "iterate" que é compartilhada entre todas as
+            //threads e necessita ser atualizada a cada iteração do programa.
+            //Assim, a primeira barreira garante que todas as threads executaram a iteração atual
+            //do ciclo "while", ou seja, elas passaram pela condição de parada "while"
+            //A segunda barreira garante que a variável "iterate" foi atualizada pela thread 0
+            //antes que as demais threads verificassem se executariam por mais um loop ou não.
             #pragma omp barrier
+            //Atualizando as variáveis compartilhadas para a próxima iteração
             if (omp_get_thread_num()==0){
                 iterate=iterate/2;
                 aux+=1;
